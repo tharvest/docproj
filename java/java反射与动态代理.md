@@ -1,0 +1,96 @@
+
+# 动态代理
+
+**参考资料**
+
+- [知乎 - Java动态代理的作用](https://www.zhihu.com/question/20794107)
+- [知乎 - Java JDK动态代理Proxy类的原理是什么？](https://www.zhihu.com/question/49337471)
+## 静态代理的作用
+**字体提供类，有多种实现，磁盘、网络、系统**
+~~~java
+	public interface FontProvider {
+		Font getFont(String name);
+	}
+	
+	public abstract class ProviderFactory {
+		public static FontProvider getFontProvider() {
+			return new FontProviderFromDisk();
+		}
+	}
+	
+	public class Main() {
+		public static void main(String[] args) {
+			FontProvider fontProvider = ProviderFactory.getFontPriver();
+		}
+	}
+~~~
+### 带缓存功能
+~~~java
+	public class CachedFontProvider implements FontProvider {
+		private FontProvider fontProvider;
+		private Map<String, Font> cached;
+		public CachedFontProvider(FontProvider fontProvider) {
+			this.fontProvider = fontProvider;
+		}
+		public Font getFont(String name) {
+			Font font = cached.get(name);
+			if (font == null) {
+				font = fontProvider.getFont(name);
+				cached.put(name, font);
+			}
+			return font;
+		}
+	}
+	
+	public abstract class ProviderFactory {
+		public static FontProvider getFontProvider() {
+			return new CachedFontProvider(new FontProviderFromDisk());
+		}
+	}
+
+~~~
+#### 动态代理实现
+
+~~~java
+public class CachedProviderHandler implements InvocationHandler {
+	private Map<String, Object> cached = new HashMap<>();
+	private Object target;
+	public CachedProviderHandler(Object target) {
+		this.target = target;
+	}
+	public Object invoke(Object proxy, Method method, Object[] args)
+		throws Throwable {
+		Type[] types = method.getParameterTypes();
+		if (method.getName().matches("get.+") && (types.length == 1) &&
+			(types[0] == String.class)) {
+			String key = (String)args[0];
+			Object value = cached.get(key);
+			if (value == null) {
+				value = method.invoke(target, args);
+				cached.put(key, value);
+			}	
+			return value;
+		}
+		return method.invoke(target, args);
+	}
+}
+
+~~~
+# 对象实例化方式
+- 直接实例化
+~~~java
+Student student = new Student();
+~~~
+
+- 根据类名实例化
+```java
+String clazzName = "com.xyz.Student";
+Object o = Class.forName(clazzName).netInstance();
+Sutdent s = (Student)o;
+```
+- Class类的方法
+```
+Constructors[] getConstructors()
+Field getField(String name)
+
+```
